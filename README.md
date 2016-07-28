@@ -31,3 +31,8 @@ kleine Linksammlung:
   * Gleichstrommotoren: http://www.roboternetz.de/motoren.html
   * Schrittmotoren: http://www.roboternetz.de/schrittmotoren.html
   * Motorenliste: http://www.roboternetz.de/motoruebersicht.html
+
+Timetracking:
+=============
+* Werner
+  - 26.07.16 02h CNY70 Recherche / erste Tests  
