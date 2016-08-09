@@ -31,8 +31,11 @@ kleine Linksammlung:
   * Gleichstrommotoren: http://www.roboternetz.de/motoren.html
   * Schrittmotoren: http://www.roboternetz.de/schrittmotoren.html
   * Motorenliste: http://www.roboternetz.de/motoruebersicht.html
+  * http://www.vishay.com/docs/83751/cny70.pdf
 
 Timetracking:
 =============
 * Werner
   - 26.07.16 02h CNY70 Recherche / erste Tests  
+  - 08.08.16 01h Tests mit CNY70
+  - 09.08.16 02h Cafe am Peterstor
