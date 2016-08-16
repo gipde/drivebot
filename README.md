@@ -44,3 +44,4 @@ Timetracking:
   - 26.07.16 02h CNY70 Recherche / erste Tests  
   - 08.08.16 01h Tests mit CNY70
   - 09.08.16 02h Cafe am Peterstor
+  - 16.08.16 02h Tests Stepper 28BYJ-48
