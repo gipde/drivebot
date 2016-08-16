@@ -30,6 +30,7 @@ kleine Linksammlung:
   * Schrittmotoren: http://www.roboternetz.de/schrittmotoren.html
   * Motorenliste: http://www.roboternetz.de/motoruebersicht.html
   * http://www.vishay.com/docs/83751/cny70.pdf
+  * Motor Erklärung - https://channel9.msdn.com/Shows/themakershow/8
   * 
 Videos
   * https://www.youtube.com/watch?v=gEqghokSw9U
