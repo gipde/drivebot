@@ -6,7 +6,7 @@ import RPi.GPIO as GPIO
 GPIO.setmode(GPIO.BCM)
  
 # Define GPIO signals to use
-StepPins = [2,3,4,17]
+StepPins = [9,10,22,27]
  
 # Set all pins as output
 for pin in StepPins:
