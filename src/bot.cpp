@@ -1,22 +1,26 @@
+#include "ShiftLiquidCrystal.h"
 #include <Arduino.h>
-#include <LiquidCrystal.h>
 
 // Button used for starting the bot
 #define BUTN 10
 
 // LED's signalize the CNY70 focus
-#define LED1 11
-#define LED2 12
-#define LED3 13
+#define LED1 0
+#define LED2 1
+#define LED3 2
 
 // SHIFT
-#define SHIFT_DATA 9  // SER
-#define SHIFT_LATCH 8 // RCLK
-#define SHIFT_CLOCK 7 // SRCLK
+#define SHIFT_DATA 5  // SER
+#define SHIFT_LATCH 6 // RCLK
+#define SHIFT_CLOCK 9 // SRCLK
+
+#define SENSOR1 17 // SENSOR1
+#define SENSOR2 18 // SENSOR2
+#define SENSOR3 19 // SENSOR3
 
 // Global Vars
 int leds[] = {LED1, LED2, LED3};
-LiquidCrystal lcd(6, 5, 4, 3, 2, 1);
+LiquidCrystal lcd(SHIFT_LATCH);
 
 // Motor at default off
 int motor_on = false;
@@ -31,29 +35,45 @@ int dir = 0;
 // button - changed state
 int changed = false;
 
-byte data = 0;
+/*
+writes Data through out 2 shift Registers
+*/
+uint16_t data = 0;
 void shiftWrite(int desiredPin, boolean desiredState) {
   bitWrite(data, desiredPin, desiredState);
-  shiftOut(SHIFT_DATA, SHIFT_CLOCK, MSBFIRST, data);
-  digitalWrite(SHIFT_LATCH, HIGH);
   digitalWrite(SHIFT_LATCH, LOW);
+  shiftOut(SHIFT_DATA, SHIFT_CLOCK, MSBFIRST, data & 0xff);
+  shiftOut(SHIFT_DATA, SHIFT_CLOCK, MSBFIRST, (byte)(data >> 8));
+  digitalWrite(SHIFT_LATCH, HIGH);
 }
 
+/*
+set initial state of Pins
+*/
 void setup_pins() {
   pinMode(BUTN, INPUT);
-
-  for (int i = 0; i < 3; i++)
-    pinMode(leds[i], OUTPUT);
 
   pinMode(SHIFT_DATA, OUTPUT);
   pinMode(SHIFT_LATCH, OUTPUT);
   pinMode(SHIFT_CLOCK, OUTPUT);
 
-  for (int i = 0; i < 8; i++)
+  for (int i = 0; i < 16; i++)
     shiftWrite(i, LOW);
 }
-void setup(void) { setup_pins(); }
 
+/*
+main Setup Method
+*/
+void setup(void) {
+  Serial.begin(115200);
+  Serial.print("We are starting ... ");
+  setup_pins();
+  // TODO: Calibrate Sensors
+}
+
+/*
+drives a motor
+*/
 void driveMotor(int motor, int d) {
 
   // if no delay -> motor stop
@@ -86,7 +106,7 @@ void driveMotors(int val) {
 
 void clearLeds() {
   for (int i = 0; i < 3; i++) {
-    digitalWrite(leds[i], LOW);
+    shiftWrite(leds[i], LOW);
   }
 }
 
@@ -99,12 +119,16 @@ int readPrintSensors(int sensor, int x) {
   return value;
 }
 
+/*
+Main Loop
+*/
 void loop(void) {
 
   if (iv-- == 0) {
     iv = INTV;
 
     clearLeds();
+
     lcd.clear();
     int s1 = readPrintSensors(0, 0);
     int s2 = readPrintSensors(1, 4);
@@ -112,20 +136,20 @@ void loop(void) {
 
     if (s1 < s2) {
       if (s1 < s3) {
-        digitalWrite(LED1, HIGH);
+        shiftWrite(LED1, HIGH);
         if (dir > -3)
           dir--;
       } else {
-        digitalWrite(LED3, HIGH);
+        shiftWrite(LED3, HIGH);
         if (dir < 3)
           dir++;
       }
     } else {
       if (s2 < s3) {
-        digitalWrite(LED2, HIGH);
+        shiftWrite(LED2, HIGH);
         dir = 0;
       } else {
-        digitalWrite(LED3, HIGH);
+        shiftWrite(LED3, HIGH);
         if (dir < 3)
           dir++;
       }

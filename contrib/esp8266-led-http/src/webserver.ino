@@ -1,11 +1,10 @@
 #include <ESP8266WiFi.h>
 
-const char *ssid = "myhot2";
+const char *ssid = "nkmhhg";
 const char *password = "1234567890";
 
 WiFiServer server(8080);
-// int ledPin = 2; // GPIO2
-int ledPin = LED_BUILTIN;
+int ledPin = 2; // GPIO2
 
 void setup() {
   Serial.begin(115200);
@@ -15,12 +14,9 @@ void setup() {
   digitalWrite(ledPin, LOW);
 
   // Connect to WiFi network
-  Serial.println();
-  Serial.println();
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
+  Serial.printf("\n\nConnecting to %s", ssid);
 
-  // WiFi.begin(ssid, password);
+  WiFi.begin(ssid, password);
 
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -37,7 +33,7 @@ void setup() {
   Serial.print("Use this URL to connect: ");
   Serial.print("http://");
   Serial.print(WiFi.localIP());
-  Serial.println("/");
+  Serial.println(":8080/");
 }
 
 void loop() {
@@ -98,3 +94,4 @@ void loop() {
   Serial.println("Client disonnected");
   Serial.println("");
 }
+I
