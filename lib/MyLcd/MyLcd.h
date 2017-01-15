@@ -1,8 +1,8 @@
-#ifndef LiquidCrystal_h
-#define LiquidCrystal_h
+#ifndef MyLcd_h
+#define MyLcd_h
 
+#include "Arduino.h"
 #include "Print.h"
-#include <SPI.h>
 #include <inttypes.h>
 
 // commands
@@ -43,24 +43,10 @@
 #define LCD_5x10DOTS 0x04
 #define LCD_5x8DOTS 0x00
 
-class LiquidCrystal : public Print {
+class MyLcd : public Print {
 public:
-  LiquidCrystal(uint8_t rs, uint8_t enable, uint8_t d0, uint8_t d1, uint8_t d2,
-                uint8_t d3, uint8_t d4, uint8_t d5, uint8_t d6, uint8_t d7);
-  LiquidCrystal(uint8_t rs, uint8_t rw, uint8_t enable, uint8_t d0, uint8_t d1,
-                uint8_t d2, uint8_t d3, uint8_t d4, uint8_t d5, uint8_t d6,
-                uint8_t d7);
-  LiquidCrystal(uint8_t rs, uint8_t rw, uint8_t enable, uint8_t d0, uint8_t d1,
-                uint8_t d2, uint8_t d3);
-  LiquidCrystal(uint8_t rs, uint8_t enable, uint8_t d0, uint8_t d1, uint8_t d2,
-                uint8_t d3);
-  LiquidCrystal(uint8_t ssPin); // SPI to ShiftRegister 74HC595 ##########
-
-  void init(uint8_t fourbitmode, uint8_t rs, uint8_t rw, uint8_t enable,
-            uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3, uint8_t d4,
-            uint8_t d5, uint8_t d6, uint8_t d7);
-
-  void initSPI(uint8_t _ssPin); // SPI ##################################
+  MyLcd(uint8_t rs, uint8_t enable, uint8_t d0, uint8_t d1, uint8_t d2,
+        uint8_t d3, void (*write_fun)(int, boolean));
 
   void begin(uint8_t cols, uint8_t rows, uint8_t charsize = LCD_5x8DOTS);
 
@@ -80,31 +66,23 @@ public:
   void autoscroll();
   void noAutoscroll();
 
+  void setRowOffsets(int row1, int row2, int row3, int row4);
   void createChar(uint8_t, uint8_t[]);
   void setCursor(uint8_t, uint8_t);
   virtual size_t write(uint8_t);
   void command(uint8_t);
 
+  using Print::write;
+
 private:
   void send(uint8_t, uint8_t);
-  void spiSendOut(); // SPI ###########################################
   void write4bits(uint8_t);
   void write8bits(uint8_t);
   void pulseEnable();
 
   uint8_t _rs_pin;     // LOW: command.  HIGH: character.
-  uint8_t _rw_pin;     // LOW: write to LCD.  HIGH: read from LCD.
   uint8_t _enable_pin; // activated by a HIGH pulse.
   uint8_t _data_pins[8];
-
-  // SPI #####################################################################
-  uint8_t _bitString; // for SPI  bit0=not used, bit1=RS, bit2=RW, bit3=Enable,
-                      // bits4-7 = DB4-7
-  bool _usingSpi; // to let send and write functions know we are using SPI
-  uint8_t _latchPin;
-  uint8_t _clockDivider;
-  uint8_t _dataMode;
-  uint8_t _bitOrder; // SPI ####################################################
 
   uint8_t _displayfunction;
   uint8_t _displaycontrol;
@@ -112,7 +90,9 @@ private:
 
   uint8_t _initialized;
 
-  uint8_t _numlines, _currline;
+  uint8_t _numlines;
+  uint8_t _row_offsets[4];
+  void (*_writer)(int, boolean);
 };
 
 #endif
