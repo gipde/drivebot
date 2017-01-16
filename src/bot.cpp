@@ -1,8 +1,8 @@
 #include "MyLcd.h"
 #include <Arduino.h>
-#include <pins_arduino.h>
 //#include <LiquidCrystal.h>
 
+#include "DigitalIO.h"
 // Button used for starting the bot
 #define BUTN 10
 
@@ -30,6 +30,13 @@
 
 #define SHIFT_REGISTER 3
 
+const uint8_t SOFT_SPI_MISO_PIN = 13;
+const uint8_t SOFT_SPI_SS_PIN = 5;
+const uint8_t SOFT_SPI_MOSI_PIN = 6;
+const uint8_t SOFT_SPI_SCK_PIN = 9;
+const uint8_t SPI_MODE = 0;
+
+SoftSPI<SOFT_SPI_MISO_PIN, SOFT_SPI_MOSI_PIN, SOFT_SPI_SCK_PIN, SPI_MODE> spi;
 /*
 writes Data through out 2 shift Registers
 */
@@ -78,6 +85,14 @@ void setup_pins() {
     shiftWrite(i, LOW);
 }
 
+#define transfer_bit(b)                                                        \
+  if (b)                                                                       \
+    PORTD |= (1 << 5);                                                         \
+  else                                                                         \
+    PORTD &= ~(1 << 5);                                                        \
+  PORTD ^= (1 << 6);                                                           \
+  PORTD ^= (1 << 6);
+
 /*
 main Setup Method
 */
@@ -85,7 +100,55 @@ void setup(void) {
   Serial.begin(115200);
   Serial.println("We are starting ... ");
 
-  setup_pins();
+  DDRD |= (1 << 5) | (1 << 6);
+  DDRB |= (1 << 1);
+
+  uint32_t data = 0xfecdab;
+
+  // duty cycle dauert 11u
+  while (true) {
+    digitalWrite(5, HIGH);
+    digitalWrite(5, LOW);
+  }
+
+  int sh5 = (1 << 5);
+  int sh6 = (1 << 6);
+  int sh1 = (1 << 1);
+
+  while (true) {
+    // komplett dauert 23u
+    PORTB &= ~sh1; // PD5 Low;
+    transfer_bit(data & (1 << 7));
+    transfer_bit(data & (1 << 6));
+    transfer_bit(data & (1 << 5));
+    transfer_bit(data & (1 << 4));
+    transfer_bit(data & (1 << 3));
+    transfer_bit(data & (1 << 2));
+    transfer_bit(data & (1 << 1));
+    transfer_bit(data & (1 << 0));
+
+    transfer_bit(data & (1 << 15));
+    transfer_bit(data & (1 << 14));
+    transfer_bit(data & (1 << 13));
+    transfer_bit(data & (1 << 12));
+    transfer_bit(data & (1 << 11));
+    transfer_bit(data & (1 << 10));
+    transfer_bit(data & (1 << 9));
+    transfer_bit(data & (1 << 8));
+
+    transfer_bit(data & (uint32_t)(1 << 23));
+    transfer_bit(data & (uint32_t)(1 << 22));
+    transfer_bit(data & (uint32_t)(1 << 21));
+    transfer_bit(data & (uint32_t)(1 << 20));
+    transfer_bit(data & (uint32_t)(1 << 19));
+    transfer_bit(data & (uint32_t)(1 << 18));
+    transfer_bit(data & (uint32_t)(1 << 17));
+    transfer_bit(data & (uint32_t)(1 << 16));
+
+    PORTB |= sh1; // PD5 high;
+    asm volatile("nop");
+    //    delayMicroseconds(10);
+  }
 
   while (true) {
 
