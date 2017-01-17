@@ -2,7 +2,6 @@
 #include <Arduino.h>
 //#include <LiquidCrystal.h>
 
-#include "DigitalIO.h"
 // Button used for starting the bot
 #define BUTN 10
 
@@ -36,20 +35,9 @@ const uint8_t SOFT_SPI_MOSI_PIN = 6;
 const uint8_t SOFT_SPI_SCK_PIN = 9;
 const uint8_t SPI_MODE = 0;
 
-SoftSPI<SOFT_SPI_MISO_PIN, SOFT_SPI_MOSI_PIN, SOFT_SPI_SCK_PIN, SPI_MODE> spi;
 /*
 writes Data through out 2 shift Registers
 */
-uint32_t data = 0;
-
-inline void shiftWrite(int desiredPin, boolean desiredState) {
-  bitWrite(data, desiredPin, desiredState);
-  digitalWrite(SHIFT_LATCH, LOW);
-  shiftOut(SHIFT_DATA, SHIFT_CLOCK, MSBFIRST, (byte)(data & 0xff));
-  shiftOut(SHIFT_DATA, SHIFT_CLOCK, MSBFIRST, (byte)((data >> 8) & 0xff));
-  shiftOut(SHIFT_DATA, SHIFT_CLOCK, MSBFIRST, (byte)(data >> 16));
-  digitalWrite(SHIFT_LATCH, HIGH);
-}
 
 // Global Vars
 int leds[] = {LED1, LED2, LED3};
@@ -71,6 +59,74 @@ int changed = false;
 /*
 set initial state of Pins
 */
+
+uint32_t data = 0;
+void shiftWrite(uint8_t port, uint8_t state) {
+
+  if (state == HIGH)
+    data |= (1 << port);
+  else
+    data &= ~(1 << port);
+
+  asm volatile(
+
+      "cbi 0x05,1\n" // PORT B1 low
+
+      "ldi r19,3\n" // 3 bytes to work
+
+      "NEXT_BYTE:\n"
+      "ldi r17,0x80\n" // 7 Bits to scan //1
+      "ld r18,%a0+\n"  // load byte in r18 and incremtn z //2
+
+      "SEND_BIT:\n"
+      "mov r16,r18\n" // copy original value into r16 //1
+      "and r16,r17\n" // test bit in r16  //1
+      "brne HIGH\n"   // 1
+      "cbi 0xb,6\n"   // LOW //1
+      "jmp PULSE\n"
+      "HIGH:\n"
+      "sbi 0x0b,6\n" // HIGH
+
+      "PULSE:\n"
+      "sbi 0x0b,5\n" // Port D5 high Pulse //TODO: move higher to gain duty
+                     // cycle
+      "cbi 0x0b,5\n" // Port D5 low
+
+      "lsr r17 \n" // shift right
+      "brne SEND_BIT \n"
+
+      "dec r19 \n"
+      "brne NEXT_BYTE \n"
+
+      "sbi 0x05,1" // PORT B1 High
+
+      :
+      : "e"((&data) + 1));
+}
+
+#define CB(B)                                                                  \
+  asm("sbrc r18," #B "\n sbi 0x0b,6\n cbi 0xb,6\n sbi 0x0b,5\n cbi 0x0b,5\n");
+#define byteseq CB(7) CB(6) CB(5) CB(4) CB(3) CB(2) CB(1) CB(0)
+
+void shiftWrite2() {
+  asm("cbi 0x05,1\n" // PORT B1 low
+
+      "ldi r19,3\n" // 3 bytes to work
+
+      "NEXT_BYTE2:\n"
+      "ld r18,%a0+\n" // load byte in r18 and incremtn z //2
+      :
+      : "e"((&data) + 1));
+
+  byteseq;
+
+  asm("dec r19 \n"
+      "brne NEXT_BYTE2 \n"
+
+      "sbi 0x05,1" // PORT B1 High
+
+      );
+}
 
 void setup_pins() {
 
@@ -96,6 +152,7 @@ void setup_pins() {
 /*
 main Setup Method
 */
+
 void setup(void) {
   Serial.begin(115200);
   Serial.println("We are starting ... ");
@@ -103,66 +160,57 @@ void setup(void) {
   DDRD |= (1 << 5) | (1 << 6);
   DDRB |= (1 << 1);
 
+  // while (true) {
+  //   shiftWrite(14, 0xAA);
+  //   delayMicroseconds(10);
+  // }
+
   uint32_t data = 0xfecdab;
 
-  // duty cycle dauert 11u
   while (true) {
-    digitalWrite(5, HIGH);
-    digitalWrite(5, LOW);
+
+    for (int i = 0; i < SHIFT_REGISTER * 8; i++) {
+      data |= (1 << i);
+      shiftWrite2();
+      delay(20);
+    }
+    for (int i = 0; i < SHIFT_REGISTER * 8; i++) {
+      data &= ~(1 << i);
+      shiftWrite2();
+      delay(20);
+    }
   }
-
-  int sh5 = (1 << 5);
-  int sh6 = (1 << 6);
-  int sh1 = (1 << 1);
-
   while (true) {
     // komplett dauert 23u
-    PORTB &= ~sh1; // PD5 Low;
-    transfer_bit(data & (1 << 7));
-    transfer_bit(data & (1 << 6));
-    transfer_bit(data & (1 << 5));
-    transfer_bit(data & (1 << 4));
-    transfer_bit(data & (1 << 3));
-    transfer_bit(data & (1 << 2));
-    transfer_bit(data & (1 << 1));
-    transfer_bit(data & (1 << 0));
-
-    transfer_bit(data & (1 << 15));
-    transfer_bit(data & (1 << 14));
-    transfer_bit(data & (1 << 13));
-    transfer_bit(data & (1 << 12));
-    transfer_bit(data & (1 << 11));
-    transfer_bit(data & (1 << 10));
-    transfer_bit(data & (1 << 9));
-    transfer_bit(data & (1 << 8));
-
-    transfer_bit(data & (uint32_t)(1 << 23));
-    transfer_bit(data & (uint32_t)(1 << 22));
-    transfer_bit(data & (uint32_t)(1 << 21));
-    transfer_bit(data & (uint32_t)(1 << 20));
-    transfer_bit(data & (uint32_t)(1 << 19));
-    transfer_bit(data & (uint32_t)(1 << 18));
-    transfer_bit(data & (uint32_t)(1 << 17));
-    transfer_bit(data & (uint32_t)(1 << 16));
-
-    PORTB |= sh1; // PD5 high;
+    data++;
     asm volatile("nop");
+
+    PORTB &= ~(1 << 1);
+    transfer_bit(data & (1 << 7));
+    // transfer_bit(data & (1 << 6));
+    // transfer_bit(data & (1 << 5));
+    // transfer_bit(data & (1 << 4));
+    // transfer_bit(data & (1 << 3));
+    // transfer_bit(data & (1 << 2));
+    // transfer_bit(data & (1 << 1));
+    // transfer_bit(data & (1 << 0));
+    //
+    // transfer_bit(data & (1 << 15));
+    // transfer_bit(data & (1 << 14));
+    // transfer_bit(data & (1 << 13));
+    // transfer_bit(data & (1 << 12));
+    // transfer_bit(data & (1 << 11));
+    // transfer_bit(data & (1 << 10));
+    // transfer_bit(data & (1 << 9));
+    // transfer_bit(data & (1 << 8));
+    PORTB |= (1 << 1);
+
+    asm volatile("nop");
+
     //    delayMicroseconds(10);
   }
 
-  while (true) {
-
-    for (int i = 0; i < SHIFT_REGISTER * 8; i++) {
-      shiftWrite(i, HIGH);
-      delay(20);
-    }
-    for (int i = 0; i < SHIFT_REGISTER * 8; i++) {
-      shiftWrite(i, LOW);
-      delay(20);
-    }
-  }
-
-  lcd = new MyLcd(3, 4, 5, 6, 7, 8, &shiftWrite);
+  lcd = new MyLcd(3, 4, 5, 6, 7, 8, &shiftWrite2);
   lcd->begin(20, 4);
   lcd->setCursor(0, 0);
   lcd->print("HelloWorld");
