@@ -19,9 +19,9 @@
 #define LCD_D7 8
 
 // SHIFT
-#define SHIFT_DATA 5  // SER
-#define SHIFT_LATCH 6 // RCLK
-#define SHIFT_CLOCK 9 // SRCLK
+#define SHIFT_CLOCK 5 // CLK -> PD5
+#define SHIFT_DATA 6  // DATA -> PD6
+#define SHIFT_LATCH 9 // ENABLE ->PB1
 
 #define SENSOR1 17 // SENSOR1
 #define SENSOR2 18 // SENSOR2
@@ -57,79 +57,47 @@ int dir = 0;
 int changed = false;
 
 /*
-set initial state of Pins
+set state of Pins
 */
+volatile uint32_t data = 0;
+static void writeBit(uint8_t b) {
+  asm volatile("ldi   r17, 8\n" // 8 bits to work
+               "next_bit:\n"
+               "sbrs  %0,7\n"   // skip if bit 7 is set
+               "cbi   0x0b,6\n" // clear bit on port PD6
+               "sbrc  %0,7\n"   // skip if bit 7 is clear
+               "sbi   0x0b,6\n" // set bit on port PD6
+               "rol   %0\n"     // shift rotate
 
-uint32_t data = 0;
-void shiftWrite(uint8_t port, uint8_t state) {
-
-  if (state == HIGH)
-    data |= (1 << port);
-  else
-    data &= ~(1 << port);
-
-  asm volatile(
-
-      "cbi 0x05,1\n" // PORT B1 low
-
-      "ldi r19,3\n" // 3 bytes to work
-
-      "NEXT_BYTE:\n"
-      "ldi r17,0x80\n" // 7 Bits to scan //1
-      "ld r18,%a0+\n"  // load byte in r18 and incremtn z //2
-
-      "SEND_BIT:\n"
-      "mov r16,r18\n" // copy original value into r16 //1
-      "and r16,r17\n" // test bit in r16  //1
-      "brne HIGH\n"   // 1
-      "cbi 0xb,6\n"   // LOW //1
-      "jmp PULSE\n"
-      "HIGH:\n"
-      "sbi 0x0b,6\n" // HIGH
-
-      "PULSE:\n"
-      "sbi 0x0b,5\n" // Port D5 high Pulse //TODO: move higher to gain duty
-                     // cycle
-      "cbi 0x0b,5\n" // Port D5 low
-
-      "lsr r17 \n" // shift right
-      "brne SEND_BIT \n"
-
-      "dec r19 \n"
-      "brne NEXT_BYTE \n"
-
-      "sbi 0x05,1" // PORT B1 High
-
-      :
-      : "e"((&data) + 1));
+               "sbi   0x0b,5\n"   // set bit on port PD5
+               "cbi   0x0b,5\n"   // clear bit on port PD5
+               "dec   r17\n"      // decrement by 1
+               "brne  next_bit\n" // loop
+               :
+               : "r"(b)
+               : "r17");
 }
 
-#define CB(B)                                                                  \
-  asm("sbrc r18," #B "\n sbi 0x0b,6\n cbi 0xb,6\n sbi 0x0b,5\n cbi 0x0b,5\n");
-#define byteseq CB(7) CB(6) CB(5) CB(4) CB(3) CB(2) CB(1) CB(0)
+void shiftWrite() {
+  asm volatile("cli\n"          // Disable Interrupts
+               "cbi 0x05,1\n"   // Port B1 Low
+               "cbi 0x0b,5\n"); // PORT D5 Low (Clk initial Low)
+  writeBit(((char *)&data)[2]);
+  writeBit(((char *)&data)[1]);
+  writeBit(((char *)&data)[0]);
+  asm volatile("sbi 0x05,1\n" // Port B1 High
+               "sei\n");      // Enable Interrupts
+}
 
-void shiftWrite2() {
-  asm("cbi 0x05,1\n" // PORT B1 low
-
-      "ldi r19,3\n" // 3 bytes to work
-
-      "NEXT_BYTE2:\n"
-      "ld r18,%a0+\n" // load byte in r18 and incremtn z //2
-      :
-      : "e"((&data) + 1));
-
-  byteseq;
-
-  asm("dec r19 \n"
-      "brne NEXT_BYTE2 \n"
-
-      "sbi 0x05,1" // PORT B1 High
-
-      );
+/*
+  digital Write Pin on Shift Register (45u each write)
+*/
+void digitalWritePin(uint8_t pin, uint8_t state) {
+  state == HIGH ? data |= (1L << pin) : data &= ~(1L << pin);
+  shiftWrite();
 }
 
 void setup_pins() {
-
   Serial.println("Settings Pins");
   pinMode(BUTN, INPUT);
 
@@ -137,17 +105,9 @@ void setup_pins() {
   pinMode(SHIFT_LATCH, OUTPUT);
   pinMode(SHIFT_CLOCK, OUTPUT);
 
-  for (int i = 0; i < SHIFT_REGISTER * 8; i++)
-    shiftWrite(i, LOW);
+  // set every pin  to 0
+  shiftWrite();
 }
-
-#define transfer_bit(b)                                                        \
-  if (b)                                                                       \
-    PORTD |= (1 << 5);                                                         \
-  else                                                                         \
-    PORTD &= ~(1 << 5);                                                        \
-  PORTD ^= (1 << 6);                                                           \
-  PORTD ^= (1 << 6);
 
 /*
 main Setup Method
@@ -157,60 +117,16 @@ void setup(void) {
   Serial.begin(115200);
   Serial.println("We are starting ... ");
 
-  DDRD |= (1 << 5) | (1 << 6);
-  DDRB |= (1 << 1);
-
-  // while (true) {
-  //   shiftWrite(14, 0xAA);
-  //   delayMicroseconds(10);
-  // }
-
-  uint32_t data = 0xfecdab;
+  setup_pins();
 
   while (true) {
-
-    for (int i = 0; i < SHIFT_REGISTER * 8; i++) {
-      data |= (1 << i);
-      shiftWrite2();
-      delay(20);
-    }
-    for (int i = 0; i < SHIFT_REGISTER * 8; i++) {
-      data &= ~(1 << i);
-      shiftWrite2();
-      delay(20);
-    }
-  }
-  while (true) {
-    // komplett dauert 23u
-    data++;
-    asm volatile("nop");
-
-    PORTB &= ~(1 << 1);
-    transfer_bit(data & (1 << 7));
-    // transfer_bit(data & (1 << 6));
-    // transfer_bit(data & (1 << 5));
-    // transfer_bit(data & (1 << 4));
-    // transfer_bit(data & (1 << 3));
-    // transfer_bit(data & (1 << 2));
-    // transfer_bit(data & (1 << 1));
-    // transfer_bit(data & (1 << 0));
-    //
-    // transfer_bit(data & (1 << 15));
-    // transfer_bit(data & (1 << 14));
-    // transfer_bit(data & (1 << 13));
-    // transfer_bit(data & (1 << 12));
-    // transfer_bit(data & (1 << 11));
-    // transfer_bit(data & (1 << 10));
-    // transfer_bit(data & (1 << 9));
-    // transfer_bit(data & (1 << 8));
-    PORTB |= (1 << 1);
-
-    asm volatile("nop");
-
-    //    delayMicroseconds(10);
+    digitalWritePin(1, HIGH);
+    delay(50);
+    digitalWritePin(1, LOW);
+    delay(50);
   }
 
-  lcd = new MyLcd(3, 4, 5, 6, 7, 8, &shiftWrite2);
+  //  lcd = new MyLcd(3, 4, 5, 6, 7, 8, &shiftWrite);
   lcd->begin(20, 4);
   lcd->setCursor(0, 0);
   lcd->print("HelloWorld");
@@ -232,9 +148,9 @@ void driveMotor(int motor, int d) {
   // select motor and do 1 wave clycle
   int spin = motor * 4;
   for (int i = spin; i < 4 + spin; i++) {
-    shiftWrite(i, HIGH);
+    //    shiftWrite(i, HIGH);
     delay(d);
-    shiftWrite(i, LOW);
+    //    shiftWrite(i, LOW);
   }
 }
 
@@ -255,7 +171,7 @@ void driveMotors(int val) {
 
 void clearLeds() {
   for (int i = 0; i < 3; i++) {
-    shiftWrite(leds[i], LOW);
+    //  shiftWrite(leds[i], LOW);
   }
 }
 
@@ -273,8 +189,6 @@ Main Loop
 */
 void loop(void) {
 
-  // shifting();
-
   if (iv-- == 0) {
     iv = INTV;
 
@@ -287,20 +201,20 @@ void loop(void) {
 
     if (s1 < s2) {
       if (s1 < s3) {
-        shiftWrite(LED1, HIGH);
+        //    shiftWrite(LED1, HIGH);
         if (dir > -3)
           dir--;
       } else {
-        shiftWrite(LED3, HIGH);
+        //  shiftWrite(LED3, HIGH);
         if (dir < 3)
           dir++;
       }
     } else {
       if (s2 < s3) {
-        shiftWrite(LED2, HIGH);
+        // shiftWrite(LED2, HIGH);
         dir = 0;
       } else {
-        shiftWrite(LED3, HIGH);
+        //        shiftWrite(LED3, HIGH);
         if (dir < 3)
           dir++;
       }
@@ -328,38 +242,3 @@ void loop(void) {
   //  lcd.print(dir);
   driveMotors(dir);
 }
-
-// LiquidCrystal lcd2(10, 11, 16, 17, 18, 19);
-// // set up the LCD's number of columns and rows:
-// int max_x = 20;
-// int max_y = 4;
-// lcd2.begin(max_x, max_y);
-// // Print a message to the LCD.
-// for (int i = 0; i < max_x; i++) {
-//   for (int j = 0; j < max_y; j++) {
-//     lcd2.setCursor(i, j);
-//     delay(50);
-//     lcd2.print(1);
-//     delay(100);
-//   }
-// }
-// lcd2.print("hello, world!");
-//
-// while (true) {
-//
-//   lcd2.setCursor(0, 1);
-//   // print the number of seconds since reset:
-//   lcd2.print(millis() / 1000);
-// }
-// Serial.print("setting pin ");
-// Serial.print(desiredPin);
-// Serial.print(" to ");
-// Serial.print(desiredState);
-// Serial.print(" ");
-// Serial.print(data);
-// Serial.print(" ");
-// Serial.print(data & 0xff);
-// Serial.print(" ");
-// Serial.print((byte)((data >> 8) & 0xff));
-// Serial.print(" ");
-// Serial.println((byte)(data >> 16) & 0xff);
