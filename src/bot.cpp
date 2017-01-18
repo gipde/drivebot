@@ -1,6 +1,5 @@
 #include "MyLcd.h"
 #include <Arduino.h>
-//#include <LiquidCrystal.h>
 
 // Button used for starting the bot
 #define BUTN 10
@@ -11,12 +10,12 @@
 #define LED3 2
 
 // LCD
-#define LCD_RS 3
-#define LCD_ENABLE 4
-#define LCD_D4 5
-#define LCD_D5 6
-#define LCD_D6 7
-#define LCD_D7 8
+#define LCD_RS 1
+#define LCD_ENABLE 2
+#define LCD_D4 3
+#define LCD_D5 4
+#define LCD_D6 5
+#define LCD_D7 6
 
 // SHIFT
 #define SHIFT_CLOCK 5 // CLK -> PD5
@@ -28,16 +27,6 @@
 #define SENSOR3 19 // SENSOR3
 
 #define SHIFT_REGISTER 3
-
-const uint8_t SOFT_SPI_MISO_PIN = 13;
-const uint8_t SOFT_SPI_SS_PIN = 5;
-const uint8_t SOFT_SPI_MOSI_PIN = 6;
-const uint8_t SOFT_SPI_SCK_PIN = 9;
-const uint8_t SPI_MODE = 0;
-
-/*
-writes Data through out 2 shift Registers
-*/
 
 // Global Vars
 int leds[] = {LED1, LED2, LED3};
@@ -119,20 +108,6 @@ void setup(void) {
 
   setup_pins();
 
-  while (true) {
-    digitalWritePin(1, HIGH);
-    delay(50);
-    digitalWritePin(1, LOW);
-    delay(50);
-  }
-
-  //  lcd = new MyLcd(3, 4, 5, 6, 7, 8, &shiftWrite);
-  lcd->begin(20, 4);
-  lcd->setCursor(0, 0);
-  lcd->print("HelloWorld");
-  while (true) {
-  }
-
   // TODO: Calibrate Sensors
 }
 
@@ -188,6 +163,20 @@ int readPrintSensors(int sensor, int x) {
 Main Loop
 */
 void loop(void) {
+
+  lcd = new MyLcd(LCD_RS, LCD_ENABLE, LCD_D4, LCD_D5, LCD_D6, LCD_D7,
+                  &digitalWritePin);
+  lcd->begin(20, 4);
+
+  int count = 0;
+  lcd->setCursor(0, 0);
+  lcd->print("Hello World");
+  while (true) {
+
+    lcd->setCursor(12, 0);
+    lcd->print(count++);
+    delay(500);
+  }
 
   if (iv-- == 0) {
     iv = INTV;

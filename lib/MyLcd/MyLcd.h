@@ -46,7 +46,7 @@
 class MyLcd : public Print {
 public:
   MyLcd(uint8_t rs, uint8_t enable, uint8_t d0, uint8_t d1, uint8_t d2,
-        uint8_t d3, void (*write_fun)(int, boolean));
+        uint8_t d3, void (*write_fun)(uint8_t, uint8_t));
 
   void begin(uint8_t cols, uint8_t rows, uint8_t charsize = LCD_5x8DOTS);
 
@@ -92,7 +92,7 @@ private:
 
   uint8_t _numlines;
   uint8_t _row_offsets[4];
-  void (*_writer)(int, boolean);
+  void (*_writer)(uint8_t, uint8_t);
 };
 
 #endif

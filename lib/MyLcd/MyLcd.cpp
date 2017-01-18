@@ -25,7 +25,7 @@
 // MyLcd constructor is called).
 
 MyLcd::MyLcd(uint8_t rs, uint8_t enable, uint8_t d0, uint8_t d1, uint8_t d2,
-             uint8_t d3, void (*writer_fun)(int, boolean)) {
+             uint8_t d3, void (*writer_fun)(uint8_t, uint8_t)) {
 
   _writer = writer_fun;
   _rs_pin = rs;
@@ -44,7 +44,6 @@ MyLcd::MyLcd(uint8_t rs, uint8_t enable, uint8_t d0, uint8_t d1, uint8_t d2,
 }
 
 void MyLcd::begin(uint8_t cols, uint8_t lines, uint8_t dotsize) {
-  Serial.println("Begin LCD");
   if (lines > 1) {
     _displayfunction |= LCD_2LINE;
   }
@@ -59,7 +58,6 @@ void MyLcd::begin(uint8_t cols, uint8_t lines, uint8_t dotsize) {
 
   delayMicroseconds(50000);
   // Now we pull both RS and R/W low to begin commands
-
   _writer(_rs_pin, LOW);
   _writer(_enable_pin, LOW);
 
