@@ -22,6 +22,9 @@
 #define SHIFT_DATA 6  // DATA -> PD6
 #define SHIFT_LATCH 9 // ENABLE ->PB1
 
+// MOTOR
+#define MOTOR_PIN_OFFSET
+
 #define SENSOR1 17 // SENSOR1
 #define SENSOR2 18 // SENSOR2
 #define SENSOR3 19 // SENSOR3
@@ -123,9 +126,9 @@ void driveMotor(int motor, int d) {
   // select motor and do 1 wave clycle
   int spin = motor * 4;
   for (int i = spin; i < 4 + spin; i++) {
-    //    shiftWrite(i, HIGH);
+    digitalWritePin(MOTOR_PIN_OFFSET + i, HIGH);
     delay(d);
-    //    shiftWrite(i, LOW);
+    digitalWritePin(MOTOR_PIN_OFFSET + i, LOW);
   }
 }
 
@@ -176,6 +179,7 @@ void loop(void) {
     lcd->setCursor(12, 0);
     lcd->print(count++);
     delay(500);
+    driveMotors(1);
   }
 
   if (iv-- == 0) {
